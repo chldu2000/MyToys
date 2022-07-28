@@ -1,0 +1,8 @@
+S
+S A B C D
+i + * ( ) $
+S->BA
+A->+BA|null
+B->DC
+C->*DC|null
+D->(S)|i

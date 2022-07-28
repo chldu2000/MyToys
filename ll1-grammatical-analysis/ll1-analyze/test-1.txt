@@ -1,0 +1,30 @@
+S i S->BA
+S +
+S *
+S ( S->BA
+S )
+S $
+A i
+A + A->+BA
+A *
+A (
+A ) A->null
+A $ A->null
+B i B->DC
+B +
+B *
+B ( B->DC
+B )
+B $
+C i
+C + C->null
+C * C->*DC
+C (
+C ) C->null
+C $ C->null
+D i D->i
+D +
+D *
+D ( D->(S)
+D )
+D $

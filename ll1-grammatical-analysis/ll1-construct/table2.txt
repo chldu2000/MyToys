@@ -1,0 +1,8 @@
+S a S->T
+S ( S->T
+S )
+S $
+T a T->a
+T ( T->(S)ST
+T )
+T $

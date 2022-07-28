@@ -1,0 +1,18 @@
+S i S->iEtST
+S t
+S a S->a
+S b
+S c
+S $
+T i
+T t
+T a
+T b T->bS T->null
+T c
+T $ T->null
+E i
+E t
+E a
+E b
+E c E->c
+E $

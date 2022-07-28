@@ -1,0 +1,404 @@
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::vec;
+
+#[derive(Default)]
+pub struct GrammerInfo {
+    pub start: String,
+    pub terminals: Vec<String>,
+    pub non_terminals: Vec<String>,
+    pub productions: Vec<String>,
+    pub first: HashMap<String, Vec<String>>,
+    pub follow: HashMap<String, Vec<String>>,
+}
+impl GrammerInfo {
+    pub fn init_grammer(&mut self, path: String) {
+        self.start = String::new();
+        self.terminals = vec![];
+        self.non_terminals = vec![];
+        self.productions = vec![];
+        self.first = HashMap::new();
+        self.follow = HashMap::new();
+
+        let file = File::open(path).unwrap();
+        let reader = BufReader::new(file);
+
+        let mut count = 0;
+        for line in reader.lines() {
+            if count < 1 {
+                // 起始符号
+                self.start = line.unwrap();
+            } else if count < 2 {
+                // 非终结符
+                let non_terminal_symbols: Vec<String> =
+                    line.unwrap().split(" ").map(|s| s.to_string()).collect();
+                // for symbol in non_terminal_symbols {
+                //     if self.non_terminals.contains(&symbol) {
+                //         self.non_terminals.push(symbol);
+                //     }
+                // }
+                self.non_terminals = non_terminal_symbols;
+            } else if count < 3 {
+                // 终结符
+                let terminal_symbols: Vec<String> =
+                    line.unwrap().split(" ").map(|s| s.to_string()).collect();
+                // for symbol in terminal_symbols {
+                //     if self.terminals.contains(&symbol) {
+                //         self.terminals.push(symbol);
+                //     }
+                // }
+                self.terminals = terminal_symbols;
+            } else {
+                // 产生式
+                let line_split: Vec<String> =
+                    line.unwrap().split("->").map(|l| l.to_string()).collect();
+                let exp_post: Vec<String> = line_split
+                    .get(1)
+                    .unwrap()
+                    .split("|")
+                    .map(|e| e.to_string())
+                    .collect();
+                for exp in exp_post {
+                    self.productions
+                        .push(line_split.get(0).unwrap().to_string() + "->" + &exp);
+                }
+            }
+
+            count += 1;
+        }
+    }
+
+    pub fn get_first(&mut self) -> String {
+        let mut first = String::new();
+        // 给非终结符分配空的 first 集合
+        for symbol in &self.non_terminals {
+            self.first.insert(symbol.clone(), vec![]);
+        }
+        // symbol 是终结符，它的 first 集合中只有自己
+        for symbol in &self.terminals {
+            self.first
+                .insert(symbol.clone(), Vec::from([symbol.to_string()]));
+        }
+        // 求解非终结符的 first 集合，结果拼接成字符串形式
+        for symbol in self.non_terminals.clone() {
+            first = first + "First(" + &symbol + "): ";
+            self.solve_first(&symbol);
+            let first_vec = self.first.get(&symbol);
+            for i in 0..first_vec.unwrap().len() {
+                first = first + first_vec.unwrap().get(i).unwrap() + " ";
+            }
+            first += "\r\n";
+        }
+        first
+    }
+
+    // 求 symbol 的 first 集合
+    fn solve_first(&mut self, symbol: &String) {
+        if self.first.get(symbol).is_some() && self.first.get(symbol).unwrap().len() > 0 {
+            // 已经算出 symbol 符号的 first
+            // println!("{} first solved", symbol);
+            return;
+        }
+        // } else if !symbol.chars().nth(0).unwrap().is_alphabetic()
+        //     || !symbol.chars().nth(0).unwrap().is_uppercase()
+        // else if !self.non_terminals.contains(symbol) {
+        //     // symbol 是终结符，它的 first 集合中只有自己
+        //     let vec = Vec::from([symbol.to_string()]);
+        //     self.first.insert(symbol.to_string(), vec);
+        //     return;
+        // }
+        else if self.first.get(symbol).is_none() {
+            // get_first 中没有为 symbol 添加 first
+            // println!("{} first does not exist", symbol);
+            return;
+        }
+        // loop {
+        for production in self.productions.clone() {
+            // println!("production: {}", production);
+            let prod_split: Vec<String> = production.split("->").map(|p| p.to_string()).collect();
+            // println!("{}", prod_split.get(0).unwrap().eq(symbol));
+            if prod_split.get(0).unwrap().eq(symbol) {
+                let prod_post = prod_split.get(1); // 产生式右侧
+                let n = prod_post.unwrap().len();
+                let mut k: usize = 0;
+                let mut continue_b = true;
+                let epsilon_str = "null".to_string(); // epsilon
+                if epsilon_str.eq(prod_post.unwrap()) {
+                    // 产生式右边是 epsilon（这里用字符串 null 表示），把 epsilon 加入 symbol 的 first集合
+                    let mut first_vec = self.first.get(symbol).unwrap().clone();
+                    first_vec.push(epsilon_str.clone());
+                    self.first.insert(symbol.to_string(), first_vec);
+                } else {
+                    while continue_b && k < n {
+                        // 产生式右侧的 x0 x1 ... xn-1
+                        let xk = prod_post.unwrap().chars().nth(k).unwrap().to_string();
+                        // println!("xk: {}", xk);
+                        // 求出 xk 的 first 集合
+                        self.solve_first(&xk);
+                        // 把 xk 的 first 加入到 symbol 的 first
+                        let first_xk = self.first.get(&xk).unwrap().clone();
+                        for first_str in &first_xk {
+                            if first_str.ne(&epsilon_str) {
+                                let mut first_vec = self.first.get(symbol).unwrap().clone();
+                                first_vec.push(first_str.to_string());
+                                self.first.insert(symbol.to_string(), first_vec);
+                            }
+                        }
+                        // xk 不能导出 epsilon，就不再向 First(symbol) 中加入符号
+                        if !first_xk.contains(&epsilon_str) {
+                            continue_b = false;
+                        }
+                        k += 1;
+                    }
+                    if continue_b {
+                        let mut first_vec = self.first.get(symbol).unwrap().clone();
+                        first_vec.push(epsilon_str);
+                        self.first.insert(symbol.to_string(), first_vec);
+                    }
+                }
+                // if continue_b {
+                //     let mut first_vec = self.first.get(symbol).unwrap().clone();
+                //     first_vec.push(epsilon_str);
+                //     self.first.insert(symbol.to_string(), first_vec);
+                // }
+            }
+        }
+        //     break;
+        // }
+    }
+
+    pub fn get_follow(&mut self) -> String {
+        let mut follow = String::new();
+        for symbol in &self.non_terminals {
+            self.follow
+                .insert(symbol.clone(), Vec::from(["$".to_string()]));
+        }
+
+        for symbol in self.non_terminals.clone() {
+            // 对每个非终结符求 follow
+            let follow_changed = self.solve_follow(&symbol);
+            // follow 集合有变化，对所有
+            if follow_changed {
+                for symbol in self.non_terminals.clone() {
+                    self.solve_follow(&symbol);
+                }
+            }
+        }
+        for symbol in self.non_terminals.clone() {
+            follow = follow + "Follow(" + &symbol + "): ";
+            let follow_vec = self.follow.get(&symbol);
+            for i in 0..follow_vec.unwrap().len() {
+                follow = follow + follow_vec.unwrap().get(i).unwrap() + " ";
+            }
+            follow += "\r\n";
+        }
+        follow
+    }
+
+    fn solve_follow(&mut self, symbol: &String) -> bool {
+        let mut changed = false;
+        // let end = "$".to_string();
+        // if self.start.eq(symbol) && !self.follow.get(symbol).unwrap().contains(&end) {
+        //     // Follow(start_symbol) 一定包含 $
+        //     self.follow.insert(symbol.to_string(), Vec::from([end]));
+        //     changed = true;
+        // }
+        if self.non_terminals.contains(symbol) {
+            for production in self.productions.clone() {
+                // println!("production: {}", production);
+                let prod_split: Vec<String> =
+                    production.split("->").map(|p| p.to_string()).collect();
+                if prod_split.get(0).unwrap().eq(symbol) {
+                    let prod_post = prod_split.get(1); // 产生式右侧
+                    let n = prod_post.unwrap().len();
+                    let mut i: usize = 0;
+                    let epsilon_str = "null".to_string(); // epsilon
+
+                    // println!(
+                    //     "symbol: {}, production_post: {}",
+                    //     symbol,
+                    //     prod_post.unwrap().to_string()
+                    // );
+
+                    while i < n {
+                        let mut contains_epsilon = false;
+                        let xi = prod_post.unwrap().chars().nth(i).unwrap().to_string();
+                        //println!("xi: {}", &xi);
+                        // if i == n - 1 {
+                        //     let follow_symbol = self.follow.get(symbol).unwrap().clone();
+                        //     let mut follow_xi = self.follow.get(&xi).unwrap().clone();
+                        //     for follow_str in follow_symbol {
+                        //         if !follow_xi.contains(&follow_str) {
+                        //             follow_xi.push(follow_str.to_string());
+                        //         }
+                        //     }
+                        //     self.follow.insert(xi.clone(), follow_xi);
+                        // }
+                        if self.non_terminals.contains(&xi) {
+                            if i == n - 1 {
+                                let follow_symbol = self.follow.get(symbol).unwrap().clone();
+                                let mut follow_xi = self.follow.get(&xi).unwrap().clone();
+                                for follow_str in follow_symbol {
+                                    if !follow_xi.contains(&follow_str) {
+                                        follow_xi.push(follow_str.to_string());
+                                    }
+                                }
+                                self.follow.insert(xi.clone(), follow_xi);
+                                changed = true;
+                            }
+                            // for j in 1..(n - i) {
+                            //     let xipj =
+                            //         prod_post.unwrap().chars().nth(i + j).unwrap().to_string();
+                            //     let first_xipj = self.first.get(&xipj).unwrap().clone();
+                            //     let mut follow_xi = self.follow.get(&xi).unwrap().clone();
+                            //     for first_str in first_xipj {
+                            //         if !follow_xi.contains(&first_str)
+                            //             && !epsilon_str.eq(&first_str)
+                            //         {
+                            //             follow_xi.push(first_str);
+                            //         } else if epsilon_str.eq(&first_str) {
+                            //             contains_epsilon = true;
+                            //         }
+                            //     }
+
+                            //     // let mut str = String::new();
+                            //     // for temp in &follow_xi {
+                            //     //     str += temp;
+                            //     // }
+                            //     // println!("xipj: {}, follow_xi: {}", xipj, &str);
+
+                            //     self.follow.insert(xi.to_string(), follow_xi);
+                            //     changed = true;
+
+                            //     if self.terminals.contains(&xipj) {
+                            //         break;
+                            //     }
+                            // }
+                            if i < n - 1 {
+                                let xip1 =
+                                    prod_post.unwrap().chars().nth(i + 1).unwrap().to_string();
+                                let first_xip1 = self.first.get(&xip1).unwrap().clone();
+                                let mut follow_xi = self.follow.get(&xi).unwrap().clone();
+                                for first_str in first_xip1 {
+                                    if !follow_xi.contains(&first_str)
+                                        && !epsilon_str.eq(&first_str)
+                                    {
+                                        follow_xi.push(first_str);
+                                    } else if epsilon_str.eq(&first_str) {
+                                        contains_epsilon = true;
+                                    }
+                                }
+
+                                // let mut str = String::new();
+                                // for temp in &follow_xi {
+                                //     str += temp;
+                                // }
+                                // println!("xipj: {}, follow_xi: {}", xipj, &str);
+
+                                self.follow.insert(xi.to_string(), follow_xi);
+                                changed = true;
+
+                                // if self.terminals.contains(&xipj) {
+                                //     break;
+                                // }
+                            }
+                            if contains_epsilon {
+                                let follow_symbol = self.follow.get(symbol).unwrap().clone();
+                                let mut follow_xi = self.follow.get(&xi).unwrap().clone();
+                                for follow_str in follow_symbol {
+                                    if !follow_xi.contains(&follow_str) {
+                                        follow_xi.push(follow_str.to_string());
+                                    }
+                                }
+                                self.follow.insert(xi, follow_xi);
+                                changed = true;
+                            }
+                        }
+                        // else if self.terminals.contains(&xi) {
+                        // }
+                        i += 1;
+                    }
+                }
+            }
+        }
+        changed
+    }
+
+    pub fn get_table(&self) -> String {
+        let mut table_str = String::new();
+        let mut table = HashMap::new();
+        for non_tmn in self.non_terminals.clone() {
+            for tmn in self.terminals.clone() {
+                let value: Vec<String> = Vec::new();
+                table.insert(Vec::from([non_tmn.clone(), tmn.clone()]), value);
+            }
+        }
+        for prod in self.productions.clone() {
+            let prod_split: Vec<String> = prod.split("->").map(|s| s.to_string()).collect();
+            let non_tmn = prod_split.get(0).unwrap().to_string();
+            let prod_post = prod_split.get(1).unwrap().to_string();
+            if !prod_post.eq(&"null".to_string()) {
+                let alpha = prod_post.chars().nth(0).unwrap().to_string();
+                let first_alpha_vec = self.first.get(&alpha).unwrap();
+                for first_str in first_alpha_vec {
+                    if self.terminals.contains(first_str) {
+                        let vec_temp = Vec::from([non_tmn.clone(), first_str.clone()]);
+
+                        println!("Vec_temp:");
+                        for s in vec_temp.clone() {
+                            println!("{}", s);
+                        }
+
+                        let mut table_content = table.get(&vec_temp).unwrap().clone();
+                        table_content.push(prod.clone());
+                        table.insert(vec_temp, table_content);
+                    }
+                    // else if first_str.eq(&"null".to_string()) {
+                    //     for follow_str in self.follow.get(&non_tmn).unwrap() {
+                    //         if self.terminals.contains(follow_str) {
+                    //             let vec_temp = Vec::from([non_tmn.clone(), follow_str.clone()]);
+
+                    //             println!("Vec_temp:");
+                    //             for s in vec_temp.clone() {
+                    //                 println!("{}", s);
+                    //             }
+
+                    //             let mut table_content = table.get(&vec_temp).unwrap().clone();
+                    //             table_content.push(prod.clone());
+                    //             table.insert(vec_temp, table_content);
+                    //         }
+                    //     }
+                    // }
+                }
+            } else {
+                for follow_str in self.follow.get(&non_tmn).unwrap() {
+                    if self.terminals.contains(follow_str) {
+                        let vec_temp = Vec::from([non_tmn.clone(), follow_str.clone()]);
+
+                        println!("Vec_temp:");
+                        for s in vec_temp.clone() {
+                            println!("{}", s);
+                        }
+
+                        let mut table_content = table.get(&vec_temp).unwrap().clone();
+                        table_content.push(prod.clone());
+                        table.insert(vec_temp, table_content);
+                    }
+                }
+            }
+        }
+        for non_tmn in self.non_terminals.clone() {
+            for tmn in self.terminals.clone() {
+                table_str = table_str + &non_tmn + " " + &tmn;
+                let vec_temp = Vec::from([non_tmn.clone(), tmn.clone()]);
+                let table_content = table.get(&vec_temp).unwrap().clone();
+                for content in table_content {
+                    table_str = table_str + " " + &content;
+                }
+                table_str = table_str + "\r\n";
+            }
+        }
+        table_str
+    }
+}

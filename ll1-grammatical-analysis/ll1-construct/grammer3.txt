@@ -1,0 +1,6 @@
+S
+S T E
+i t a b c $
+S->iEtST|a
+T->bS|null
+E->c
