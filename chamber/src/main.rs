@@ -9,8 +9,10 @@ use std::env;
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.contains(&String::from(consts::ARG_CLIENT)) {
-        println!("Start client!")
+        println!("Start client!");
+        client::init();
     } else if args.contains(&String::from(consts::ARG_SERVER)) {
-        println!("Start server!")
+        println!("Start server!");
+        server::init();
     }
 }
