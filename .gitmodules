@@ -1,8 +1,6 @@
 [submodule "chamber"]
 	path = chamber
 	url = https://github.com/charliedu2000/chamber
-
-
 [submodule "BLESerial"]
 	path = BLESerial
-	url = https://github.com/charliedu2000/BLESerial
+	url = https://github.com/charliedu2000/BLESerial.git

@@ -6,7 +6,7 @@ Something that isn't necessarily useful but should be fun... If you want to know
 
 ## What can they do？
 
-- [BLESerial](./https://github.com/charliedu2000/BLESerial)
+- [BLESerial](https://github.com/charliedu2000/BLESerial)
   - [2021 年暑期项目：多功能小车](https://afool.top/learning/how-to-own-a-tricycle/)配套的安卓蓝牙遥控器，基于[gtf35/BLESerial](https://github.com/gtf35/BLESerial)。
 - [GraphToy](./GraphToy)
   - 非常简单的图像处理工具。可以一键实现灰度化、模拟油画效果等多种功能。
