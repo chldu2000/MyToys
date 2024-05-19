@@ -2,7 +2,7 @@
 
 一些不一定有用但应该算有趣的东西……想要详细了解的话可以点击它们各自的链接查看 `README.md`。
 
-Something that isn't necessarily useful but should be fun... If you want to know more, you can go to their folders to view the `README.md`.
+Something that isn't necessarily useful but should be fun... If you want to know more, click their links and view their `README.md`.
 
 ## What can they do？
 
