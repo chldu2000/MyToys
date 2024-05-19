@@ -4,3 +4,6 @@
 [submodule "BLESerial"]
 	path = BLESerial
 	url = https://github.com/charliedu2000/BLESerial.git
+[submodule "spring-boot-app-demo"]
+	path = spring-boot-app-demo
+	url = https://github.com/chldu2000/spring-boot-app-demo
